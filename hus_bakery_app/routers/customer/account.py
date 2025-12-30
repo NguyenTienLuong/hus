@@ -1,10 +1,13 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from hus_bakery_app.services.customer.account_services import update_profile, change_password, update_avatar, total_amount_of_customer, get_customer_rank_service,get_order_history_service, get_latest_active_order_id
+from hus_bakery_app.services.customer.account_services import update_profile, change_password, update_avatar, \
+    total_amount_of_customer, get_customer_rank_service, get_order_history_service, get_latest_active_order_id
 from hus_bakery_app.models.customer import Customer
 import json
 from hus_bakery_app.services.customer.order_services import get_order_detail_service
+
 account_bp = Blueprint("account", __name__)
+
 
 @account_bp.route("/rank", methods=["GET"])
 @jwt_required()
@@ -20,7 +23,6 @@ def rank():
         "total_amount_spent": total_amount,
         "rank": rank
     }), 200
-
 
 @account_bp.route("/profile", methods=["GET", "PUT"])
 @jwt_required()
@@ -108,6 +110,8 @@ def history_api():
         "status": "success",
         "data": data
     }), 200
+
+
 @account_bp.route("/current-active-order", methods=["GET"])
 @jwt_required()
 def api_get_current_order():
@@ -115,11 +119,11 @@ def api_get_current_order():
     customer_id = identity["id"]
 
     # Bước 1: Tìm ID đơn hàng active mới nhất
-    orders , error = get_latest_active_order_id(customer_id)
+    orders, error = get_latest_active_order_id(customer_id)
 
     if error:
         return jsonify({"message": error}), 500
-    
+
     result = [
         {
             "order_id": order_id,

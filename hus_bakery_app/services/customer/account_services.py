@@ -102,18 +102,13 @@ def get_order_history_service(customer_id):
     history_list = []
 
     for order in orders:
-        # 1. Lấy trạng thái & Ngày cập nhật (dùng làm Ngày nhận hàng)
         status_obj = OrderStatus.query.get(order.order_id)
         status_text = status_obj.status if status_obj else "Đang xử lý"
-        # Nếu đã hoàn thành thì lấy ngày update, chưa thì để trống hoặc lấy ngày tạo
         received_date = status_obj.updated_at.strftime("%d/%m/%Y") if status_obj and status_obj.updated_at else ""
-
-        # 2. Lấy danh sách sản phẩm trong đơn
         items_query = db.session.query(OrderItem, Product).outerjoin(
             Product, OrderItem.product_id == Product.product_id
         ).filter(OrderItem.order_id == order.order_id).all()
 
-        # Tạo list string để hiển thị trong bảng (vì cột sản phẩm trong ảnh có nhiều dòng)
         product_names = []
         quantities = []
         prices = []
@@ -125,20 +120,17 @@ def get_order_history_service(customer_id):
             # Format giá: 300000.00 -> 300,000 VNĐ (hoặc để Frontend lo)
             prices.append(f"{float(item.price):,.0f} VNĐ")
 
-        # 3. Gom dữ liệu theo đúng các cột trong ảnh
         history_list.append({
             "order_id": order.order_id,
-
-            # Các mảng này Frontend sẽ map để xuống dòng (<br>) hiển thị như ảnh
-            "products": product_names,  # Cột Sản phẩm
-            "quantities": quantities,  # Cột Số lượng bánh
+            "products": product_names,
+            "quantities": quantities,
             "prices": prices,  # Cột Giá
 
-            "branch_id": order.branch_id if order.branch_id else "Kho tổng",  # Cột Cơ sở
-            "created_at": order.created_at.strftime("%d/%m/%Y"),  # Cột Ngày đặt hàng
-            "received_at": received_date,  # Cột Ngày nhận hàng
+            "branch_id": order.branch_id if order.branch_id else "Kho tổng",
+            "created_at": order.created_at.strftime("%d/%m/%Y"),
+            "received_at": received_date,
             "total_amount": float(order.total_amount) if order.total_amount else 0,  # Cột Tổng tiền
-            "status": status_text  # Cột Trạng thái
+            "status": status_text 
         })
 
     return history_list
