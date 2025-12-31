@@ -40,7 +40,10 @@ def mark_customer_notification_read(order_id):
     return False
 
 def get_new_success_order_notification(customer_id):
-    latest_order = Order.query.get(Order, OrderStatus.status).join(OrderStatus, Order.order_id == OrderStatus.order_id).filter(Order.customer_id == customer_id).order_by(desc(OrderStatus.updated_at)).first()
+    latest_order = db.session.query(Order, OrderStatus.status)\
+        .join(OrderStatus, Order.order_id == OrderStatus.order_id)\
+        .filter(Order.customer_id == customer_id)\
+        .order_by(desc(OrderStatus.updated_at)).first()
 
     if latest_order:
         order_obj, current_status = latest_order
@@ -55,3 +58,35 @@ def get_new_success_order_notification(customer_id):
 
     return None
 
+from sqlalchemy import desc
+
+def get_all_success_order_notifications(customer_id, page=1, per_page=10):
+    """
+        Lấy tất cả bản ghi từ bảng customer_notification của một khách hàng.
+        """
+    # 1. Truy vấn từ bảng CustomerNotification
+    query = CustomerNotification.query.filter_by(customer_id=customer_id) \
+        .order_by(desc(CustomerNotification.created_at))
+
+    # 2. Phân trang
+    paginated_data = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # 3. Format dữ liệu trả về
+    notifications = []
+    for notif in paginated_data.items:
+        notifications.append({
+            "id": notif.id,
+            "order_id": notif.order_id,
+            "is_read": notif.is_read,
+            "created_at": notif.created_at,
+            # Nếu cần lấy thêm thông tin từ quan hệ 'order' đã định nghĩa ở relationship
+            "order_status": notif.order.status if notif.order else None
+        })
+
+
+    return {
+        "items": notifications,
+        "total_pages": paginated_data.pages,
+        "current_page": paginated_data.page,
+        "total_items": paginated_data.total
+    }

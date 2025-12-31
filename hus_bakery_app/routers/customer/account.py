@@ -1,13 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from hus_bakery_app.services.customer.account_services import update_profile, change_password, update_avatar, \
-    total_amount_of_customer, get_customer_rank_service, get_order_history_service, get_latest_active_order_id
+from hus_bakery_app.services.customer.account_services import update_profile, change_password, update_avatar, total_amount_of_customer, get_customer_rank_service,get_order_history_service, get_latest_active_order_id,get_product_was_bought, get_branch_detail
 from hus_bakery_app.models.customer import Customer
 import json
 from hus_bakery_app.services.customer.order_services import get_order_detail_service
-
 account_bp = Blueprint("account", __name__)
-
 
 @account_bp.route("/rank", methods=["GET"])
 @jwt_required()
@@ -23,6 +20,7 @@ def rank():
         "total_amount_spent": total_amount,
         "rank": rank
     }), 200
+
 
 @account_bp.route("/profile", methods=["GET", "PUT"])
 @jwt_required()
@@ -81,18 +79,20 @@ def update_avatar_api():
 @jwt_required()
 def change_password_api():
     identity = get_jwt_identity()
-    current_user_id = identity["id"]
-
+    user_data = json.loads(identity) if isinstance(identity, str) else identity
+    current_user_id = user_data.get("id")
+    current_role = user_data.get("role")
     data = request.json
 
     success, msg = change_password(
-        current_user_id,
-        data.get("old_password"),
-        data.get("new_password"),
-        data.get("confirm_password"),
+        role=current_role,
+        id=current_user_id,
+        old_password=data.get("old_password"),
+        new_password=data.get("new_password"),
+        confirm_password=data.get("confirm_password"),
     )
 
-    return jsonify({"message": msg}), (200 if success else 400)
+    return jsonify({ "success":success, "message": msg}), (200 if success else 400)
 
 @account_bp.route("/order_history", methods=["GET"])
 @jwt_required()
@@ -110,8 +110,6 @@ def history_api():
         "status": "success",
         "data": data
     }), 200
-
-
 @account_bp.route("/current-active-order", methods=["GET"])
 @jwt_required()
 def api_get_current_order():
@@ -119,11 +117,11 @@ def api_get_current_order():
     customer_id = identity["id"]
 
     # Bước 1: Tìm ID đơn hàng active mới nhất
-    orders, error = get_latest_active_order_id(customer_id)
+    orders , error = get_latest_active_order_id(customer_id)
 
     if error:
         return jsonify({"message": error}), 500
-
+    
     result = [
         {
             "order_id": order_id,
@@ -133,3 +131,45 @@ def api_get_current_order():
     ]
 
     return jsonify(result), 200
+@account_bp.route("/bought_products", methods=["GET"])
+@jwt_required()
+def api_get_bought_products():
+    try:
+        identity_data = get_jwt_identity()
+        if isinstance(identity_data, str):
+            identity = json.loads(identity_data)
+        else:
+            identity = identity_data
+
+        customer_id = identity.get("id")
+
+        if not customer_id:
+              return jsonify({
+                "status": "error",
+                "total": None,
+                "message": "Không tìm thấy ID khách hàng trong token"
+            }), 400
+
+        products = get_product_was_bought(customer_id)
+
+        return jsonify({
+            "status": "success",
+            "total": len(products),
+            "data": products
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "total": None,
+            "message": f"Đã xảy ra lỗi: {str(e)}"
+        }), 500
+
+@account_bp.route("/branch_detail", methods=["GET"])
+def api_get_branch_info():
+    details = get_branch_detail()
+
+    return jsonify({
+        "status": "success",
+        "details": details
+    }), 200
