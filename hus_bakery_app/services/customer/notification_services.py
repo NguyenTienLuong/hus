@@ -83,7 +83,6 @@ def get_all_success_order_notifications(customer_id, page=1, per_page=10):
             "order_status": notif.order.status if notif.order else None
         })
 
-
     return {
         "items": notifications,
         "total_pages": paginated_data.pages,
